@@ -18,7 +18,7 @@
 - OpenAI 에이전트 호출
 - Firebase Firestore 저장
 - 이메일 발송
-- Google Cloud 배포 설정
+- Google Cloud의 외부 서비스 연결 설정
 
 ## 설치
 
@@ -35,6 +35,17 @@ python -m uvicorn app.main:app --reload --port 8000
 ```
 
 서버 상태는 `http://127.0.0.1:8000/health`, API 문서는 `http://127.0.0.1:8000/docs`에서 확인할 수 있습니다.
+
+## Cloud Run 배포 준비
+
+루트의 `Dockerfile`은 Cloud Run이 제공하는 `PORT` 환경 변수를 사용하고, 모든 네트워크 인터페이스에서 FastAPI 서버를 실행합니다. 로컬에서 컨테이너를 확인하려면 다음 명령을 사용합니다.
+
+```powershell
+docker build -t webdiary-api .
+docker run --rm -p 8080:8080 --env-file .env webdiary-api
+```
+
+실제 `.env` 파일은 Docker 빌드 컨텍스트와 Git에서 제외됩니다. 운영 비밀값은 이미지에 넣지 말고 Cloud Run 환경 변수 또는 Secret Manager로 설정합니다.
 
 ## 테스트
 
