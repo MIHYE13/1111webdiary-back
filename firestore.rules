@@ -1,0 +1,81 @@
+rules_version = '2';
+
+// ===============================================================
+// Assumed Data Model
+// ===============================================================
+//
+// Collection: diary_entries
+// Document ID: Firestore-generated ID
+// Fields:
+//   - diary: string (required, 10-2000 characters) - sensitive diary text
+//   - today_tasks: list (required, maximum 50 items) - validated by backend
+//   - created_at: timestamp (required, immutable) - Firestore server time
+//   - schema_version: integer (required, exactly 1, immutable)
+//
+// All browser and mobile SDK access is denied. The Cloud Run backend uses
+// its service account and IAM, which is not governed by these rules.
+// ===============================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function uidUnchanged() {
+      return !('uid' in request.resource.data) ||
+        request.resource.data.uid == request.auth.uid;
+    }
+
+    function uidNotModified() {
+      return !('uid' in request.resource.data) ||
+        request.resource.data.uid == resource.data.uid;
+    }
+
+    function hasOnlyAllowedFields(data, fields) {
+      return data.keys().hasOnly(fields);
+    }
+
+    function isValidDiaryEntry(data) {
+      return hasOnlyAllowedFields(
+          data,
+          ['diary', 'today_tasks', 'created_at', 'schema_version']
+        ) &&
+        data.keys().hasAll(
+          ['diary', 'today_tasks', 'created_at', 'schema_version']
+        ) &&
+        data.diary is string &&
+        data.diary.size() >= 10 &&
+        data.diary.size() <= 2000 &&
+        data.today_tasks is list &&
+        data.today_tasks.size() <= 50 &&
+        data.created_at is timestamp &&
+        data.schema_version is int &&
+        data.schema_version == 1;
+    }
+
+    function immutableFieldsUnchanged() {
+      return request.resource.data.created_at == resource.data.created_at &&
+        request.resource.data.schema_version == resource.data.schema_version;
+    }
+
+    match /diary_entries/{documentId} {
+      allow read, delete: if false;
+      allow create: if false && isValidDiaryEntry(request.resource.data);
+      allow update: if false &&
+        isValidDiaryEntry(request.resource.data) &&
+        immutableFieldsUnchanged();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

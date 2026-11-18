@@ -29,8 +29,7 @@ def create_app() -> FastAPI:
         title="다음 장 API",
         version="0.1.0",
         description=(
-            "오늘의 일기를 받아 다음 단계로 전달하기 위한 백엔드입니다. "
-            "현재는 OpenAI 에이전트와 Firestore에 연결하지 않습니다."
+            "오늘의 일기와 오늘 할 일을 Firestore에 저장하는 백엔드입니다."
         ),
     )
     app.add_middleware(

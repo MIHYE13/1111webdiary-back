@@ -2,6 +2,9 @@
 .gitignore
 .env
 .env.*
+.firebase/
+firebase-debug.log
+firestore-debug.log
 __pycache__/
 *.py[cod]
 .pytest_cache/

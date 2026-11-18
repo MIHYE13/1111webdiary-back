@@ -37,13 +37,11 @@ class DiaryAcceptance(BaseModel):
     request_id: str
     status: Literal["accepted"] = "accepted"
     message: str
-    persisted: bool = False
-    agent_status: Literal["not_connected"] = "not_connected"
+    persisted: Literal[True] = True
 
 
 class IntegrationStatus(BaseModel):
-    agent: Literal["not_connected"] = "not_connected"
-    firestore: Literal["not_connected"] = "not_connected"
+    firestore: Literal["configured"] = "configured"
 
 
 class HealthResponse(BaseModel):

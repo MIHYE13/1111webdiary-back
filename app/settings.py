@@ -39,6 +39,8 @@ def parse_origins(raw_value: str) -> tuple[str, ...]:
 class Settings:
     app_env: str
     cors_origins: tuple[str, ...]
+    firebase_project_id: str
+    firestore_database_id: str
 
 
 def load_settings() -> Settings:
@@ -54,4 +56,21 @@ def load_settings() -> Settings:
     if app_env == "production" and not cors_origins:
         raise ValueError("CORS_ORIGINS is required when APP_ENV=production")
 
-    return Settings(app_env=app_env, cors_origins=cors_origins)
+    firebase_project_id = os.getenv("FIREBASE_PROJECT_ID", "").strip()
+    if app_env == "production" and not firebase_project_id:
+        raise ValueError(
+            "FIREBASE_PROJECT_ID is required when APP_ENV=production"
+        )
+
+    firestore_database_id = os.getenv(
+        "FIRESTORE_DATABASE_ID", "(default)"
+    ).strip()
+    if not firestore_database_id:
+        raise ValueError("FIRESTORE_DATABASE_ID cannot be empty")
+
+    return Settings(
+        app_env=app_env,
+        cors_origins=cors_origins,
+        firebase_project_id=firebase_project_id,
+        firestore_database_id=firestore_database_id,
+    )
