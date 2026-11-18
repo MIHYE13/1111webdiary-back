@@ -4,7 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.routers import diaries, health
+from app.routers import conversations, diaries, health
 from app.settings import load_settings, normalize_origin
 
 
@@ -55,6 +55,7 @@ def create_app() -> FastAPI:
 
     app.include_router(health.router)
     app.include_router(diaries.router, prefix="/api/v1")
+    app.include_router(conversations.router, prefix="/api/v1")
     return app
 
 

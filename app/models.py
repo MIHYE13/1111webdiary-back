@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -48,3 +48,43 @@ class HealthResponse(BaseModel):
     status: Literal["ok"] = "ok"
     service: Literal["webdiary-api"] = "webdiary-api"
     integrations: IntegrationStatus = Field(default_factory=IntegrationStatus)
+
+
+EnergyLevel = Literal["low", "medium", "high"]
+
+
+class ConversationMessage(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    message: str = Field(min_length=1, max_length=500)
+    energy_level: EnergyLevel = "medium"
+
+    @field_validator("message")
+    @classmethod
+    def normalize_message(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("메시지는 공백만 입력할 수 없습니다.")
+        return normalized
+
+
+class TomorrowPlan(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    must_do: str = Field(max_length=200)
+    nice_to_do: list[Annotated[str, Field(max_length=200)]] = Field(
+        max_length=2
+    )
+    easy_first_step: str = Field(max_length=200)
+    recovery: str = Field(max_length=200)
+    low_energy_alternative: str = Field(max_length=200)
+
+
+class ConversationReply(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    angel: str = Field(min_length=1, max_length=500)
+    devil: str = Field(min_length=1, max_length=500)
+    facilitator: str = Field(min_length=1, max_length=500)
+    plan_ready: bool
+    plan: TomorrowPlan

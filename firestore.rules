@@ -11,6 +11,14 @@ rules_version = '2';
 //   - today_tasks: list (required, maximum 50 items) - validated by backend
 //   - created_at: timestamp (required, immutable) - Firestore server time
 //   - schema_version: integer (required, exactly 1, immutable)
+//   - updated_at: timestamp (optional) - latest conversation update time
+//   - tomorrow_plan: map (optional) - latest structured plan
+//
+// Subcollection: diary_entries/{diaryId}/conversation
+// Fields:
+//   - user_message: string (required, maximum 500 characters)
+//   - reply: map (required) - structured angel, devil and facilitator reply
+//   - created_at: timestamp (required, immutable)
 //
 // All browser and mobile SDK access is denied. The Cloud Run backend uses
 // its service account and IAM, which is not governed by these rules.
@@ -72,6 +80,11 @@ service cloud.firestore {
       allow update: if false &&
         isValidDiaryEntry(request.resource.data) &&
         immutableFieldsUnchanged();
+
+      match /conversation/{turnId} {
+        allow read, delete: if false;
+        allow create, update: if false;
+      }
     }
 
     match /{document=**} {

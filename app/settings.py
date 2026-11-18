@@ -40,6 +40,7 @@ class Settings:
     app_env: str
     cors_origins: tuple[str, ...]
     firestore_database_id: str
+    openai_model: str
 
 
 def load_settings() -> Settings:
@@ -61,8 +62,13 @@ def load_settings() -> Settings:
     if not firestore_database_id:
         raise ValueError("FIRESTORE_DATABASE_ID cannot be empty")
 
+    openai_model = os.getenv("OPENAI_MODEL", "gpt-5.4").strip()
+    if not openai_model:
+        raise ValueError("OPENAI_MODEL cannot be empty")
+
     return Settings(
         app_env=app_env,
         cors_origins=cors_origins,
         firestore_database_id=firestore_database_id,
+        openai_model=openai_model,
     )

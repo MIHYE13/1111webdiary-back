@@ -5,10 +5,18 @@ from google.api_core.exceptions import PermissionDenied
 from pydantic import ValidationError
 
 from app.main import app, is_allowed_api_origin
-from app.models import DiarySubmission
+from app.models import (
+    ConversationMessage,
+    ConversationReply,
+    DiarySubmission,
+    TomorrowPlan,
+)
+from app.repositories.conversations import ConversationContext
 from app.repositories.diaries import FirestoreDiaryRepository
+from app.routers.conversations import create_conversation_message
 from app.routers.diaries import accept_diary
 from app.routers.health import health_check
+from app.services.conversation import OpenAIConversationService
 from app.settings import parse_origins
 
 
@@ -54,11 +62,68 @@ class FakeFirestoreClient:
         return FakeCollection(self.document)
 
 
+def sample_reply() -> ConversationReply:
+    return ConversationReply(
+        angel="내일 가장 중요한 한 가지부터 정해 봐요.",
+        devil="시작은 가볍게 하고 쉬는 시간도 챙겨요.",
+        facilitator="이 계획으로 시작해 볼까요?",
+        plan_ready=True,
+        plan=TomorrowPlan(
+            must_do="수업 자료 초안 만들기",
+            nice_to_do=["책상 정리"],
+            easy_first_step="문서 제목과 목차만 적기",
+            recovery="저녁에 20분 산책하기",
+            low_energy_alternative="목차 세 줄만 적기",
+        ),
+    )
+
+
+class FakeConversationRepository:
+    def __init__(self, context: ConversationContext | None) -> None:
+        self.context = context
+        self.saved_turn = None
+
+    def get_context(self, diary_id: str) -> ConversationContext | None:
+        return self.context
+
+    def append_turn(self, diary_id, user_message, reply) -> None:
+        self.saved_turn = (diary_id, user_message, reply)
+
+
+class FakeConversationService:
+    def __init__(self, reply: ConversationReply) -> None:
+        self.reply = reply
+        self.received = None
+
+    def respond(self, context, message, energy_level) -> ConversationReply:
+        self.received = (context, message, energy_level)
+        return self.reply
+
+
+class FakeResponses:
+    def __init__(self, reply: ConversationReply) -> None:
+        self.reply = reply
+        self.kwargs = None
+
+    def parse(self, **kwargs):
+        self.kwargs = kwargs
+        return type("ParsedResponse", (), {"output_parsed": self.reply})()
+
+
+class FakeOpenAIClient:
+    def __init__(self, reply: ConversationReply) -> None:
+        self.responses = FakeResponses(reply)
+
+
 class ApiTestCase(unittest.TestCase):
     def test_expected_routes_are_registered(self) -> None:
         route_paths = {route.path for route in app.routes}
         self.assertIn("/health", route_paths)
         self.assertIn("/api/v1/diaries", route_paths)
+        self.assertIn(
+            "/api/v1/conversations/{diary_id}/messages",
+            route_paths,
+        )
 
     def test_health_reports_firestore_configuration(self) -> None:
         response = health_check()
@@ -135,6 +200,75 @@ class ApiTestCase(unittest.TestCase):
                     "unexpected": True,
                 }
             )
+
+    def test_conversation_reply_is_generated_and_persisted(self) -> None:
+        context = ConversationContext(
+            diary="오늘은 수업 자료를 정리하면서 보람을 느꼈다.",
+            today_tasks=[{"text": "자료 정리", "complete": True}],
+            history=[],
+        )
+        repository = FakeConversationRepository(context)
+        service = FakeConversationService(sample_reply())
+        request = ConversationMessage(
+            message="내일은 무리하지 않고 초안을 만들고 싶어요.",
+            energy_level="medium",
+        )
+
+        response = create_conversation_message(
+            "aFbUvMCk3V2bGJK6cmMj",
+            request,
+            repository,
+            service,
+        )
+
+        self.assertTrue(response.plan_ready)
+        self.assertEqual(service.received, (context, request.message, "medium"))
+        self.assertEqual(
+            repository.saved_turn,
+            ("aFbUvMCk3V2bGJK6cmMj", request.message, response),
+        )
+
+    def test_missing_diary_stops_before_model_call(self) -> None:
+        repository = FakeConversationRepository(None)
+        service = FakeConversationService(sample_reply())
+        request = ConversationMessage(message="내일 계획을 세워 주세요.")
+
+        with self.assertRaises(HTTPException) as context:
+            create_conversation_message(
+                "aFbUvMCk3V2bGJK6cmMj",
+                request,
+                repository,
+                service,
+            )
+
+        self.assertEqual(context.exception.status_code, 404)
+        self.assertIsNone(service.received)
+        self.assertIsNone(repository.saved_turn)
+
+    def test_openai_request_uses_structured_output_without_storage(self) -> None:
+        reply = sample_reply()
+        client = FakeOpenAIClient(reply)
+        service = OpenAIConversationService(client, "test-model")
+        context = ConversationContext(
+            diary="오늘은 계획 테스트를 위한 일기를 작성했다.",
+            today_tasks=[],
+            history=[],
+        )
+
+        response = service.respond(context, "내일 계획을 정해요.", "low")
+
+        self.assertIs(response, reply)
+        self.assertEqual(client.responses.kwargs["model"], "test-model")
+        self.assertIs(
+            client.responses.kwargs["text_format"],
+            ConversationReply,
+        )
+        self.assertFalse(client.responses.kwargs["store"])
+        self.assertIn("내일 계획을 정해요.", client.responses.kwargs["input"])
+
+    def test_blank_conversation_message_is_rejected(self) -> None:
+        with self.assertRaises(ValidationError):
+            ConversationMessage(message="   ")
 
     def test_cors_origins_are_normalized_and_deduplicated(self) -> None:
         self.assertEqual(
