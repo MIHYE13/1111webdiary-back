@@ -54,7 +54,7 @@ OPENAI_API_KEY=Secret Manager에서 연결
 OPENAI_MODEL=gpt-5.4
 FIREBASE_PROJECT_ID=webdiary-75b29
 FIRESTORE_DATABASE_ID=(default)
-CORS_ORIGINS=https://smwu261111.netlify.app
+CORS_ORIGINS=https://1111webdiary.netlify.app
 ```
 
 - `APP_ENV`는 `development`, `test`, `production` 중 하나만 사용합니다.
