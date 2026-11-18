@@ -1,5 +1,7 @@
 import unittest
 
+from fastapi import HTTPException
+from google.api_core.exceptions import PermissionDenied
 from pydantic import ValidationError
 
 from app.main import app, is_allowed_api_origin
@@ -17,6 +19,11 @@ class FakeDiaryRepository:
     def save(self, submission: DiarySubmission) -> str:
         self.saved_submission = submission
         return "diary-document-id"
+
+
+class DeniedDiaryRepository:
+    def save(self, submission: DiarySubmission) -> str:
+        raise PermissionDenied("test permission failure")
 
 
 class FakeDocument:
@@ -99,6 +106,22 @@ class ApiTestCase(unittest.TestCase):
             [{"text": "저장 테스트", "complete": True}],
         )
         self.assertEqual(client.document.payload["schema_version"], 1)
+
+    def test_firestore_permission_error_is_safely_classified(self) -> None:
+        submission = DiarySubmission(
+            diary="오늘은 권한 오류 응답을 안전하게 확인했습니다.",
+            today_tasks=[],
+        )
+
+        with self.assertRaises(HTTPException) as context:
+            accept_diary(submission, DeniedDiaryRepository())
+
+        self.assertEqual(context.exception.status_code, 503)
+        self.assertEqual(
+            context.exception.detail["code"],
+            "firestore_permission_denied",
+        )
+        self.assertNotIn(submission.diary, str(context.exception.detail))
 
     def test_short_diary_is_rejected(self) -> None:
         with self.assertRaises(ValidationError):
