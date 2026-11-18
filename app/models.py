@@ -83,8 +83,8 @@ class TomorrowPlan(BaseModel):
 class ConversationReply(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    angel: str = Field(min_length=1, max_length=500)
-    devil: str = Field(min_length=1, max_length=500)
-    facilitator: str = Field(min_length=1, max_length=500)
+    angel: str = Field(min_length=1, max_length=240)
+    devil: str = Field(min_length=1, max_length=240)
+    facilitator: str = Field(min_length=1, max_length=240)
     plan_ready: bool
-    plan: TomorrowPlan
+    plan: TomorrowPlan | None = None

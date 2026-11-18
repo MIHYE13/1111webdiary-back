@@ -51,15 +51,24 @@ class FirestoreConversationRepository:
         recent_turns = list(
             document.collection("conversation")
             .order_by("created_at", direction=firestore.Query.DESCENDING)
-            .limit(6)
+            .limit(4)
             .stream()
         )
+        history = []
+        for turn in reversed(recent_turns):
+            turn_data = turn.to_dict() or {}
+            reply = turn_data.get("reply", {})
+            history.append(
+                {
+                    "user_message": str(turn_data.get("user_message", "")),
+                    "reply": reply if isinstance(reply, dict) else {},
+                }
+            )
+
         return ConversationContext(
             diary=str(data.get("diary", "")),
             today_tasks=list(data.get("today_tasks", [])),
-            history=[
-                turn.to_dict() or {} for turn in reversed(recent_turns)
-            ],
+            history=history,
         )
 
     def append_turn(
@@ -75,7 +84,7 @@ class FirestoreConversationRepository:
         updates: dict[str, Any] = {
             "updated_at": firestore.SERVER_TIMESTAMP,
         }
-        if reply.plan_ready:
+        if reply.plan_ready and reply.plan is not None:
             updates["tomorrow_plan"] = reply.plan.model_dump()
 
         batch = self._client.batch()

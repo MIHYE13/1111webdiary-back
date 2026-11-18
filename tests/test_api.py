@@ -1,4 +1,5 @@
 import unittest
+from datetime import datetime, timezone
 
 from fastapi import HTTPException
 from google.api_core.exceptions import PermissionDenied
@@ -264,7 +265,44 @@ class ApiTestCase(unittest.TestCase):
             ConversationReply,
         )
         self.assertFalse(client.responses.kwargs["store"])
+        self.assertEqual(
+            client.responses.kwargs["reasoning"],
+            {"effort": "none"},
+        )
+        self.assertEqual(client.responses.kwargs["max_output_tokens"], 700)
         self.assertIn("내일 계획을 정해요.", client.responses.kwargs["input"])
+
+    def test_follow_up_context_with_firestore_timestamp_is_serializable(self) -> None:
+        reply = sample_reply()
+        client = FakeOpenAIClient(reply)
+        service = OpenAIConversationService(client, "test-model")
+        context = ConversationContext(
+            diary="오늘은 두 번째 대화 요청을 테스트하는 일기를 썼다.",
+            today_tasks=[],
+            history=[
+                {
+                    "user_message": "첫 번째 질문",
+                    "reply": reply.model_dump(),
+                    "created_at": datetime.now(timezone.utc),
+                }
+            ],
+        )
+
+        response = service.respond(context, "그다음에는 뭘 할까요?", "medium")
+
+        self.assertIs(response, reply)
+        self.assertIn("첫 번째 질문", client.responses.kwargs["input"])
+        self.assertIn("그다음에는 뭘 할까요?", client.responses.kwargs["input"])
+
+    def test_incomplete_plan_does_not_require_empty_plan_fields(self) -> None:
+        reply = ConversationReply(
+            angel="중요한 일을 하나만 골라봐요.",
+            devil="쉬운 것부터 시작해도 괜찮아요.",
+            facilitator="내일 꼭 해야 하는 일은 무엇인가요?",
+            plan_ready=False,
+        )
+
+        self.assertIsNone(reply.plan)
 
     def test_blank_conversation_message_is_rejected(self) -> None:
         with self.assertRaises(ValidationError):
