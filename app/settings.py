@@ -62,9 +62,9 @@ def load_settings() -> Settings:
     if not firestore_database_id:
         raise ValueError("FIRESTORE_DATABASE_ID cannot be empty")
 
-    openai_model = os.getenv("OPENAI_MODEL", "gpt-6-luna").strip()
+    openai_model = os.getenv("OPENAI_CHAT_MODEL", "gpt-6-luna").strip()
     if not openai_model:
-        raise ValueError("OPENAI_MODEL cannot be empty")
+        raise ValueError("OPENAI_CHAT_MODEL cannot be empty")
 
     return Settings(
         app_env=app_env,
