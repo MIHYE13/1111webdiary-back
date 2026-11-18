@@ -52,14 +52,13 @@ docker run --rm -p 8080:8080 --env-file .env webdiary-api
 APP_ENV=production
 OPENAI_API_KEY=Secret Manager에서 연결
 OPENAI_MODEL=gpt-5.4
-FIREBASE_PROJECT_ID=webdiary-75b29
 FIRESTORE_DATABASE_ID=(default)
 CORS_ORIGINS=https://1111webdiary.netlify.app
 ```
 
 - `APP_ENV`는 `development`, `test`, `production` 중 하나만 사용합니다.
 - `CORS_ORIGINS`는 쉼표로 여러 주소를 구분할 수 있지만, 와일드카드(`*`)는 허용하지 않습니다.
-- 운영 환경에서는 Cloud Run 서비스 계정의 런타임 권한으로 Google Cloud와 Firestore에 접근합니다. 로컬 서비스 계정 JSON 파일을 컨테이너에 넣지 않습니다.
+- 운영 환경에서는 Google SDK가 Cloud Run의 프로젝트(`webdiary-75b29`)와 서비스 계정을 자동으로 인식합니다. 별도 프로젝트 ID나 로컬 서비스 계정 JSON 파일을 컨테이너에 넣지 않습니다.
 - Cloud Run 서비스 계정에는 대상 Firestore 데이터베이스에 문서를 생성할 수 있는 IAM 권한이 필요합니다.
 - `/api/`는 등록된 `Origin` 헤더가 없는 요청도 거부합니다. `/health`는 Cloud Run 상태 확인을 위해 예외로 둡니다.
 - Origin 제한은 브라우저 출처 제한이며 사용자 인증을 대신하지 않습니다.

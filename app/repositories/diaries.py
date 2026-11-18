@@ -43,7 +43,6 @@ class FirestoreDiaryRepository:
 def get_diary_repository() -> FirestoreDiaryRepository:
     settings = load_settings()
     client = firestore.Client(
-        project=settings.firebase_project_id,
         database=settings.firestore_database_id,
     )
     return FirestoreDiaryRepository(client)
