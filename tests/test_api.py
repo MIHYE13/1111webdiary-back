@@ -2,10 +2,11 @@ import unittest
 
 from pydantic import ValidationError
 
-from app.main import app
+from app.main import app, is_allowed_api_origin
 from app.models import DiarySubmission
 from app.routers.diaries import accept_diary
 from app.routers.health import health_check
+from app.settings import parse_origins
 
 
 class ApiTestCase(unittest.TestCase):
@@ -54,6 +55,36 @@ class ApiTestCase(unittest.TestCase):
                     "unexpected": True,
                 }
             )
+
+    def test_cors_origins_are_normalized_and_deduplicated(self) -> None:
+        self.assertEqual(
+            parse_origins(
+                "https://smwu261111.netlify.app/, "
+                "https://smwu261111.netlify.app"
+            ),
+            ("https://smwu261111.netlify.app",),
+        )
+
+    def test_api_only_accepts_configured_frontend_origin(self) -> None:
+        allowed_origins = ("https://smwu261111.netlify.app",)
+        self.assertTrue(
+            is_allowed_api_origin(
+                "/api/v1/diaries",
+                "https://smwu261111.netlify.app",
+                allowed_origins,
+            )
+        )
+        self.assertFalse(
+            is_allowed_api_origin(
+                "/api/v1/diaries",
+                "https://example.com",
+                allowed_origins,
+            )
+        )
+        self.assertFalse(
+            is_allowed_api_origin("/api/v1/diaries", None, allowed_origins)
+        )
+        self.assertTrue(is_allowed_api_origin("/health", None, allowed_origins))
 
 
 if __name__ == "__main__":
